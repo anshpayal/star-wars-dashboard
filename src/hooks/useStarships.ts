@@ -9,17 +9,24 @@ export interface Starship {
   hyperdrive_rating: string;
 }
 
-const fetchStarships = async (search?: string) => {
-  const response = await axios.get("https://swapi.dev/api/starships/", {
-    params: { search },
+interface StarshipResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: Starship[];
+}
+
+const fetchStarships = async (search?: string, page: number = 1) => {
+  const response = await axios.get<StarshipResponse>("https://swapi.dev/api/starships/", {
+    params: { search, page },
   });
-  return response.data.results as Starship[];
+  return response.data;
 };
 
-export const useStarships = (search: string) => {
+export const useStarships = (search: string, page: number) => {
   return useQuery({
-    queryKey: ["starships", search],
-    queryFn: () => fetchStarships(search),
+    queryKey: ["starships", search, page],
+    queryFn: () => fetchStarships(search, page),
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
   });
 };
