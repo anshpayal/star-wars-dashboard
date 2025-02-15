@@ -3,7 +3,7 @@
 A modern **Star Wars-themed** fleet management dashboard that allows users to **search, filter, compare, and manage starships** efficiently. Built using **Next.js**, **shadcn + TailwindCSS**, **react-query**, **react-table**, **Jotai**, and **Framer Motion** for smooth animations.
 
 ## 🎨 Demo Preview
-🚧 *[Add a live demo link if hosted]*
+🚧 *https://star-wars-dashboard-eight.vercel.app/*
 
 ---
 
