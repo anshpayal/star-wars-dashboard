@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { useStarships } from "@/hooks/useStarships";
+import { useAtom } from "jotai";
+import { selectedStarshipsAtom } from "@/store/starshipStore";
+import { useStarships, Starship } from "@/hooks/useStarships";
 import {
   useReactTable,
   getCoreRowModel,
@@ -9,14 +11,7 @@ import {
   flexRender,
 } from "@tanstack/react-table";
 import StarshipFilters from "./StarshipFilters";
-
-export interface Starship {
-  name: string;
-  model: string;
-  manufacturer: string;
-  crew: string;
-  hyperdrive_rating: string;
-}
+import CompareModal from "./CompareModal";
 
 interface StarshipTableProps {
   searchQuery: string;
@@ -26,6 +21,10 @@ export default function StarshipTable({ searchQuery }: StarshipTableProps) {
   const [page, setPage] = useState(1);
   const [hyperdriveFilter, setHyperdriveFilter] = useState("");
   const [crewFilter, setCrewFilter] = useState("");
+  const [showCompare, setShowCompare] = useState(false); // ✅ Fix: Define state for modal
+  const [selectedStarships, setSelectedStarships] = useAtom(
+    selectedStarshipsAtom
+  );
 
   const { data, isLoading, error } = useStarships(
     searchQuery,
@@ -34,15 +33,37 @@ export default function StarshipTable({ searchQuery }: StarshipTableProps) {
     crewFilter
   );
 
+  const handleSelect = (starship: Starship) => {
+    setSelectedStarships((prev) => {
+      if (prev.some((s) => s.name === starship.name)) {
+        return prev.filter((s) => s.name !== starship.name);
+      }
+      return prev.length < 3 ? [...prev, starship] : prev;
+    });
+  };
+
   const columns = useMemo<ColumnDef<Starship>[]>(
     () => [
+      {
+        id: "select",
+        header: "Select",
+        cell: ({ row }) => (
+          <input
+            type="checkbox"
+            checked={selectedStarships.some(
+              (s) => s.name === row.original.name
+            )}
+            onChange={() => handleSelect(row.original)}
+          />
+        ),
+      },
       { accessorKey: "name", header: "Name" },
       { accessorKey: "model", header: "Model" },
       { accessorKey: "manufacturer", header: "Manufacturer" },
       { accessorKey: "crew", header: "Crew Size" },
       { accessorKey: "hyperdrive_rating", header: "Hyperdrive Rating" },
     ],
-    []
+    [selectedStarships]
   );
 
   const table = useReactTable({
@@ -51,20 +72,9 @@ export default function StarshipTable({ searchQuery }: StarshipTableProps) {
     getCoreRowModel: getCoreRowModel(),
   });
 
-  if (isLoading) return <p className="mt-4">🚀 Loading starships...</p>;
-
+  if (isLoading) return <p className="mt-4">Loading starships...</p>;
   if (error)
-    return (
-      <div className="mt-4 text-red-500 text-center">
-        ❌ {error.message || "Failed to fetch starships. Please try again."}
-        <button
-          onClick={() => window.location.reload()}
-          className="ml-2 px-3 py-1 bg-blue-500 text-white rounded"
-        >
-          Retry
-        </button>
-      </div>
-    );
+    return <p className="mt-4 text-red-500">Failed to fetch starships.</p>;
 
   return (
     <div className="mt-4">
@@ -72,8 +82,8 @@ export default function StarshipTable({ searchQuery }: StarshipTableProps) {
       <StarshipFilters
         setHyperdriveFilter={setHyperdriveFilter}
         setCrewFilter={setCrewFilter}
-        hyperdriveFilter={hyperdriveFilter} // Pass current state
-        crewFilter={crewFilter} // Pass current state
+        hyperdriveFilter={hyperdriveFilter}
+        crewFilter={crewFilter}
       />
 
       {/* Table */}
@@ -112,6 +122,23 @@ export default function StarshipTable({ searchQuery }: StarshipTableProps) {
           )}
         </tbody>
       </table>
+
+      {/* Compare Button */}
+      {selectedStarships.length > 1 && (
+        <button
+          onClick={() => setShowCompare(true)}
+          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+        >
+          Compare Selected ({selectedStarships.length})
+        </button>
+      )}
+
+      {/* Compare Modal */}
+      <CompareModal
+        isOpen={showCompare}
+        onClose={() => setShowCompare(false)}
+      />
+
       <div className="flex justify-between items-center mt-4">
         <button
           className="px-4 py-2 bg-gray-300 rounded disabled:opacity-50"
