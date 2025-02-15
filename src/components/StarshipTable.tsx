@@ -8,6 +8,7 @@ import {
   ColumnDef,
   flexRender,
 } from "@tanstack/react-table";
+import StarshipFilters from "./StarshipFilters";
 
 export interface Starship {
   name: string;
@@ -23,9 +24,16 @@ interface StarshipTableProps {
 
 export default function StarshipTable({ searchQuery }: StarshipTableProps) {
   const [page, setPage] = useState(1);
-  const { data, isLoading, error } = useStarships(searchQuery, page);
+  const [hyperdriveFilter, setHyperdriveFilter] = useState("");
+  const [crewFilter, setCrewFilter] = useState("");
 
-  // Define table columns
+  const { data, isLoading, error } = useStarships(
+    searchQuery,
+    page,
+    hyperdriveFilter,
+    crewFilter
+  );
+
   const columns = useMemo<ColumnDef<Starship>[]>(
     () => [
       { accessorKey: "name", header: "Name" },
@@ -43,13 +51,33 @@ export default function StarshipTable({ searchQuery }: StarshipTableProps) {
     getCoreRowModel: getCoreRowModel(),
   });
 
-  if (isLoading) return <p className="mt-4">Loading starships...</p>;
+  if (isLoading) return <p className="mt-4">🚀 Loading starships...</p>;
+
   if (error)
-    return <p className="mt-4 text-red-500">Failed to fetch starships.</p>;
+    return (
+      <div className="mt-4 text-red-500 text-center">
+        ❌ {error.message || "Failed to fetch starships. Please try again."}
+        <button
+          onClick={() => window.location.reload()}
+          className="ml-2 px-3 py-1 bg-blue-500 text-white rounded"
+        >
+          Retry
+        </button>
+      </div>
+    );
 
   return (
     <div className="mt-4">
-      <table className="w-full border-collapse border border-gray-300 shadow-md">
+      {/* Filters */}
+      <StarshipFilters
+        setHyperdriveFilter={setHyperdriveFilter}
+        setCrewFilter={setCrewFilter}
+        hyperdriveFilter={hyperdriveFilter} // Pass current state
+        crewFilter={crewFilter} // Pass current state
+      />
+
+      {/* Table */}
+      <table className="w-full border-collapse border border-gray-300 shadow-md mt-4">
         <thead className="bg-gray-200">
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
@@ -84,23 +112,21 @@ export default function StarshipTable({ searchQuery }: StarshipTableProps) {
           )}
         </tbody>
       </table>
-
-      {/* Pagination Controls */}
-      <div className="flex justify-between mt-4">
+      <div className="flex justify-between items-center mt-4">
         <button
-          onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+          className="px-4 py-2 bg-gray-300 rounded disabled:opacity-50"
           disabled={!data?.previous}
-          className="bg-gray-300 px-4 py-2 rounded-lg disabled:opacity-50"
+          onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
         >
           Previous
         </button>
 
-        <span className="px-4 py-2">Page {page}</span>
+        <span>Page {page}</span>
 
         <button
-          onClick={() => setPage((prev) => prev + 1)}
+          className="px-4 py-2 bg-gray-300 rounded disabled:opacity-50"
           disabled={!data?.next}
-          className="bg-gray-300 px-4 py-2 rounded-lg disabled:opacity-50"
+          onClick={() => setPage((prev) => prev + 1)}
         >
           Next
         </button>
