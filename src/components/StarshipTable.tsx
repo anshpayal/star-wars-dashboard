@@ -21,7 +21,7 @@ export default function StarshipTable({ searchQuery }: StarshipTableProps) {
   const [page, setPage] = useState(1);
   const [hyperdriveFilter, setHyperdriveFilter] = useState("");
   const [crewFilter, setCrewFilter] = useState("");
-  const [showCompare, setShowCompare] = useState(false); // ✅ Fix: Define state for modal
+  const [showCompare, setShowCompare] = useState(false);
   const [selectedStarships, setSelectedStarships] = useAtom(
     selectedStarshipsAtom
   );
@@ -73,8 +73,19 @@ export default function StarshipTable({ searchQuery }: StarshipTableProps) {
   });
 
   if (isLoading) return <p className="mt-4">Loading starships...</p>;
-  if (error)
-    return <p className="mt-4 text-red-500">Failed to fetch starships.</p>;
+  if (error) {
+    return (
+      <div className="mt-4 text-red-500 text-center">
+        ❌ {error.message || "Failed to fetch starships. Please try again."}
+        <button
+          onClick={() => window.location.reload()}
+          className="ml-2 px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="mt-4">

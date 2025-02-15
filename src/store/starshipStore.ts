@@ -1,5 +1,8 @@
-import { atom } from "jotai";
+import { atomWithStorage } from "jotai/utils";
 import { Starship } from "@/hooks/useStarships";
 
-// Atom to store selected starships (max 3)
-export const selectedStarshipsAtom = atom<Starship[]>([]);
+// Persist selected starships in localStorage
+export const selectedStarshipsAtom = atomWithStorage<Starship[]>(
+  "selectedStarships",
+  []
+);
