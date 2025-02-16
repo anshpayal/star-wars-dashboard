@@ -27,23 +27,19 @@ export default function CompareModal({ isOpen, onClose }: CompareModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="min-w-[900px] p-0 overflow-hidden bg-white dark:bg-gray-800">
+      <DialogContent className="fixed max-h-[100dvh] sm:max-h-[90vh] 
+                               w-full sm:w-[90vw] sm:max-w-[900px] p-0 overflow-hidden bg-white 
+                               dark:bg-gray-800 sm:rounded-lg overflow-y-auto">
         <DialogHeader className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <DialogTitle className="flex items-center gap-2 text-xl font-semibold text-gray-900 dark:text-gray-100">
               <Ship className="h-5 w-5 text-indigo-500" />
               Compare Starships
             </DialogTitle>
-            {/* <button 
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
-            >
-              <X className="h-5 w-5 text-gray-500" />
-            </button> */}
           </div>
         </DialogHeader>
 
-        <div className="p-6">
+        <div className="flex-1 overflow-y-auto px-6 py-4">
           {selectedStarships.length < 2 ? (
             <div className="text-center py-8">
               <Ship className="h-12 w-12 mx-auto text-gray-400 mb-3" />
@@ -52,11 +48,12 @@ export default function CompareModal({ isOpen, onClose }: CompareModalProps) {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {selectedStarships.map((starship) => (
                 <div
                   key={starship.name}
-                  className="bg-gray-50 dark:bg-gray-700 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600"
+                  className="bg-gray-50 dark:bg-gray-700 rounded-lg overflow-hidden 
+                           border border-gray-200 dark:border-gray-600"
                 >
                   <div className="bg-indigo-500 p-4">
                     <h3 className="text-lg font-semibold text-white truncate">
@@ -87,7 +84,8 @@ export default function CompareModal({ isOpen, onClose }: CompareModalProps) {
           )}
         </div>
 
-        <div className="px-6 py-4 bg-gray-50 dark:bg-gray-700/50 border-t border-gray-200 dark:border-gray-700">
+        <div className="sticky bottom-0 px-6 py-4 bg-gray-50 dark:bg-gray-700/50 
+                      border-t border-gray-200 dark:border-gray-700">
           <div className="flex justify-end">
             <button 
               onClick={onClose}
