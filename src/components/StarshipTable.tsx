@@ -8,11 +8,13 @@ import {
   getCoreRowModel,
   ColumnDef,
   flexRender,
+  SortingState,
 } from "@tanstack/react-table";
 import CompareModal from "./CompareModal";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowUpDown } from "lucide-react";
+import { useTableUrlState } from '@/hooks/useTableUrlState';
 
 interface StarshipTableProps {
   searchQuery: string;
@@ -33,11 +35,16 @@ export default function StarshipTable({
   crewFilter, 
   isLoading: parentLoading 
 }: StarshipTableProps) {
-  const [page, setPage] = useState(1);
-  const [showCompare, setShowCompare] = useState(false);
+  const { getStateFromUrl, updateUrl } = useTableUrlState({});
+  const urlState = getStateFromUrl();
+  const [page, setPage] = useState(urlState.page);
+  const [showCompare, setShowCompare] = useState(urlState.compareOpen);
   const [selectedStarships, setSelectedStarships] = useAtom(
     selectedStarshipsAtom
   );
+  const [sorting, setSorting] = useState<SortingState>(() => {
+    return urlState.sortBy ? [{ id: urlState.sortBy, desc: urlState.sortOrder === 'desc' }] : [];
+  });
 
   const { data, isLoading } = useQuery({
     queryKey: ["starships", page],
@@ -90,6 +97,21 @@ export default function StarshipTable({
     });
   }, [data?.results, searchQuery, hyperdriveFilter, crewFilter]);
 
+  const sortedData = useMemo(() => {
+    if (!sorting.length) return filteredStarships;
+
+    return [...filteredStarships].sort((a, b) => {
+      const ratingA = parseFloat(a.hyperdrive_rating);
+      const ratingB = parseFloat(b.hyperdrive_rating);
+
+      if (isNaN(ratingA) && isNaN(ratingB)) return 0;
+      if (isNaN(ratingA)) return 1;
+      if (isNaN(ratingB)) return -1;
+
+      return sorting[0].desc ? ratingB - ratingA : ratingA - ratingB;
+    });
+  }, [filteredStarships, sorting]);
+
   const handleSelect = (starship: Starship) => {
     setSelectedStarships((prev) => {
       if (prev.some((s) => s.name === starship.name)) {
@@ -118,16 +140,62 @@ export default function StarshipTable({
       { accessorKey: "model", header: "Model" },
       { accessorKey: "manufacturer", header: "Manufacturer" },
       { accessorKey: "crew", header: "Crew Size" },
-      { accessorKey: "hyperdrive_rating", header: "Hyperdrive Rating" },
+      { 
+        accessorKey: "hyperdrive_rating", 
+        header: ({ column }) => {
+          return (
+            <button
+              className="flex items-center gap-2"
+              onClick={() => {
+                const newSorting = column.getToggleSortingHandler()?.({});
+                const sortOrder = column.getIsSorted() === 'asc' ? 'desc' : 
+                                column.getIsSorted() === 'desc' ? '' : 'asc';
+                updateUrl({ 
+                  sortBy: sortOrder ? 'hyperdrive_rating' : '', 
+                  sortOrder: sortOrder 
+                });
+              }}
+            >
+              Hyperdrive Rating
+              <ArrowUpDown className="h-4 w-4" />
+            </button>
+          );
+        },
+        cell: ({ row }) => {
+          const rating = parseFloat(row.original.hyperdrive_rating);
+          return (
+            <div className="text-right">
+              {isNaN(rating) ? row.original.hyperdrive_rating : rating.toFixed(1)}
+            </div>
+          );
+        },
+      },
     ],
-    [selectedStarships]
+    [selectedStarships, updateUrl]
   );
 
   const table = useReactTable({
-    data: filteredStarships,
+    data: sortedData,
     columns,
     getCoreRowModel: getCoreRowModel(),
+    state: {
+      sorting,
+    },
+    onSortingChange: setSorting,
+    enableSorting: true,
   });
+
+  // Update URL when page changes
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    updateUrl({ page: newPage });
+  };
+
+  // Update URL when compare modal opens/closes
+  const handleCompareToggle = (isOpen: boolean) => {
+    setShowCompare(isOpen);
+    updateUrl({ compareOpen: isOpen });
+  };
 
   if (isLoading || parentLoading) {
     return (
@@ -140,81 +208,68 @@ export default function StarshipTable({
   return (
     <div className="w-full rounded-lg pb-4">
       {/* Table Container */}
-      <div className="w-full">
-        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 border-radius-lg">
-          <thead className="rounded-t-lg">
-            <tr className="bg-gray-100 dark:bg-gray-700">
-              {table.getHeaderGroups().map((headerGroup) => (
-                headerGroup.headers.map((header) => (
-                  <th 
-                    key={header.id} 
-                    className="px-4 py-3.5 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+      <div className="relative overflow-x-auto">
+        <table className="w-full text-sm text-left">
+          <thead className="text-xs text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50">
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th
+                    key={header.id}
+                    className="px-4 py-3 font-medium whitespace-nowrap"
                   >
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                   </th>
-                ))
-              ))}
-            </tr>
-          </thead>
-          <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-            {table.getRowModel().rows.length > 0 ? (
-              table.getRowModel().rows.map((row) => (
-                <tr 
-                  key={row.id} 
-                  className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td 
-                      key={cell.id} 
-                      className="px-4 py-3 text-sm text-gray-900 dark:text-gray-300"
-                    >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </td>
-                  ))}
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td 
-                  colSpan={columns.length} 
-                  className="px-6 py-12 text-center text-gray-500 dark:text-gray-400"
-                >
-                  <div className="flex flex-col items-center gap-2">
-                    <span className="text-lg">No starships found</span>
-                    <span className="text-sm">Try adjusting your search or filters</span>
-                  </div>
-                </td>
+                ))}
               </tr>
-            )}
+            ))}
+          </thead>
+          <tbody>
+            {table.getRowModel().rows.map((row) => (
+              <tr
+                key={row.id}
+                className="border-b dark:border-gray-700 bg-white dark:bg-gray-800 
+                         hover:bg-gray-50 dark:hover:bg-gray-700/50"
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <td key={cell.id} className="px-4 py-3 min-w-[120px]">
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
 
-      {/* Footer Section */}
-      <div className="mt-4 flex flex-col sm:flex-row justify-between items-center gap-4 px-2">
+      {/* Controls Container */}
+      <div className="mt-4 px-4 flex flex-col sm:flex-row justify-between items-center gap-4">
         {/* Compare Button */}
         {selectedStarships.length > 1 && (
           <button
             onClick={() => setShowCompare(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg 
-                     hover:bg-indigo-700 transition-colors duration-200"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 
+                     bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 
+                     transition-colors duration-200"
           >
             <span>Compare Selected ({selectedStarships.length})</span>
           </button>
         )}
 
         {/* Pagination Controls */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-center">
           <button
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 
                      bg-white dark:bg-gray-800 dark:text-gray-300 rounded-lg border 
                      border-gray-300 dark:border-gray-600 hover:bg-gray-50 
                      dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={!data?.previous}
-            onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+            onClick={() => handlePageChange(Math.max(page - 1, 1))}
           >
             <ChevronLeft className="h-4 w-4" />
             Previous
@@ -233,7 +288,7 @@ export default function StarshipTable({
                      border-gray-300 dark:border-gray-600 hover:bg-gray-50 
                      dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
             disabled={!data?.next}
-            onClick={() => setPage((prev) => prev + 1)}
+            onClick={() => handlePageChange(page + 1)}
           >
             Next
             <ChevronRight className="h-4 w-4" />
@@ -244,7 +299,7 @@ export default function StarshipTable({
       {/* Compare Modal */}
       <CompareModal
         isOpen={showCompare}
-        onClose={() => setShowCompare(false)}
+        onClose={() => handleCompareToggle(false)}
       />
     </div>
   );
